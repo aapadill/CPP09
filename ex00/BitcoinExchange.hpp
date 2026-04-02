@@ -19,7 +19,10 @@ class BitcoinExchange
 {
 public:
 	BitcoinExchange();
+	BitcoinExchange(const BitcoinExchange& other);
 	~BitcoinExchange();
+
+	BitcoinExchange&	operator=(const BitcoinExchange& other);
 
 	void	loadDatabase(const std::string& filename);
 	void	processInputFile(const std::string& filename) const;

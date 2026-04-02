@@ -15,6 +15,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <fstream>
+#include <iostream>
 #include <sstream>
 #include <stdexcept>
 
@@ -22,8 +23,19 @@ BitcoinExchange::BitcoinExchange()
 {
 }
 
+BitcoinExchange::BitcoinExchange(const BitcoinExchange& other) : _rates(other._rates)
+{
+}
+
 BitcoinExchange::~BitcoinExchange()
 {
+}
+
+BitcoinExchange&	BitcoinExchange::operator=(const BitcoinExchange& other)
+{
+	if (this != &other)
+		_rates = other._rates;
+	return *this;
 }
 
 void	BitcoinExchange::loadDatabase(const std::string& filename)
@@ -42,7 +54,15 @@ void	BitcoinExchange::loadDatabase(const std::string& filename)
 
 void	BitcoinExchange::processInputFile(const std::string& filename) const
 {
-	(void)filename;
+	std::ifstream	file(filename.c_str());
+	std::string		line;
+
+	if (!file.is_open())
+		throw std::runtime_error("Error: could not open file.");
+	if (!std::getline(file, line) || line != "date | value")
+		throw std::runtime_error("Error: invalid input header.");
+	while (std::getline(file, line))
+		processInputLine(line);
 }
 
 std::string	BitcoinExchange::trim(const std::string& str)
@@ -75,9 +95,7 @@ bool	BitcoinExchange::isValidDateFormat(const std::string& date)
 
 bool	BitcoinExchange::isValidDate(const std::string& date)
 {
-	static const int	daysInMonth[12] = {
-		31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
-	};
+	static const int	daysInMonth[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 	int					year;
 	int					month;
 	int					day;
@@ -108,7 +126,27 @@ bool	BitcoinExchange::isLeapYear(int year)
 bool	BitcoinExchange::parseValue(const std::string& str, double& value)
 {
 	std::istringstream	stream(str);
+	std::string::size_type	i;
+	int						dotCount;
 
+	if (str.empty())
+		return false;
+	i = 0;
+	if (str[i] == '+' || str[i] == '-')
+		++i;
+	if (i == str.length())
+		return false;
+	dotCount = 0;
+	while (i < str.length())
+	{
+		if (str[i] == '.')
+			++dotCount;
+		else if (!std::isdigit(static_cast<unsigned char>(str[i])))
+			return false;
+		++i;
+	}
+	if (dotCount > 1)
+		return false;
 	stream >> value;
 	if (stream.fail())
 		return false;
@@ -118,14 +156,12 @@ bool	BitcoinExchange::parseValue(const std::string& str, double& value)
 
 bool	BitcoinExchange::isPositiveValue(double value)
 {
-	(void)value;
-	return false;
+	return value >= 0.0;
 }
 
 bool	BitcoinExchange::isTooLargeValue(double value)
 {
-	(void)value;
-	return false;
+	return value > 1000.0;
 }
 
 void	BitcoinExchange::parseDatabaseLine(const std::string& line)
@@ -150,11 +186,56 @@ void	BitcoinExchange::parseDatabaseLine(const std::string& line)
 
 void	BitcoinExchange::processInputLine(const std::string& line) const
 {
-	(void)line;
+	std::string::size_type	separatorPos;
+	std::string				date;
+	std::string				valueString;
+	double					value;
+	double					rate;
+
+	separatorPos = line.find('|');
+	if (separatorPos == std::string::npos || line.find('|', separatorPos + 1) != std::string::npos)
+	{
+		std::cout << "Error: bad input => " << line << std::endl;
+		return ;
+	}
+	date = trim(line.substr(0, separatorPos));
+	valueString = trim(line.substr(separatorPos + 1));
+	if (!isValidDate(date) || !parseValue(valueString, value))
+	{
+		std::cout << "Error: bad input => " << line << std::endl;
+		return ;
+	}
+	if (!isPositiveValue(value))
+	{
+		std::cout << "Error: not a positive number." << std::endl;
+		return ;
+	}
+	if (isTooLargeValue(value))
+	{
+		std::cout << "Error: too large a number." << std::endl;
+		return ;
+	}
+	try
+	{
+		rate = getRateForDate(date);
+	}
+	catch (const std::out_of_range&)
+	{
+		std::cout << "Error: bad input => " << line << std::endl;
+		return ;
+	}
+	std::cout << date << " => " << valueString << " = " << value * rate << std::endl;
 }
 
 double	BitcoinExchange::getRateForDate(const std::string& date) const
 {
-	(void)date;
-	return 0.0;
+	std::map<std::string, double>::const_iterator	it;
+
+	it = _rates.lower_bound(date);
+	if (it != _rates.end() && it->first == date)
+		return it->second;
+	if (it == _rates.begin())
+		throw std::out_of_range("No earlier exchange rate found.");
+	--it;
+	return it->second;
 }
