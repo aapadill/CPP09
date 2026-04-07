@@ -1,7 +1,7 @@
 NAME = PmergeMe
 
 CXX = c++
-CXXFLAGS = -Wall -Wextra -Werror -std=c++11
+CXXFLAGS = -Wall -Wextra -Werror -std=c++20
 
 SRCS = PmergeMe.cpp main.cpp
 OBJS = $(SRCS:.cpp=.o)
