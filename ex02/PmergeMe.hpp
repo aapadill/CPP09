@@ -6,12 +6,13 @@
 /*   By: aapadill <aapadill@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/27 16:31:27 by aapadill          #+#    #+#             */
-/*   Updated: 2026/04/07 22:14:21 by aapadill         ###   ########.fr       */
+/*   Updated: 2026/04/07 02:14:21 by aapadill         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #pragma once
 
+#include <cstddef>
 #include <deque>
 #include <string>
 #include <vector>
@@ -34,4 +35,6 @@ class PmergeMe
 
 		static int	parsePositiveInt(const std::string& token);
 		static void	printSequence(const std::vector<int>& sequence);
+		static std::size_t	jacobsthal(std::size_t n);
+		static std::vector<std::size_t>	buildInsertionOrder(std::size_t loserCount);
 };
