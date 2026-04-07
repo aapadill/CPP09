@@ -24,6 +24,7 @@ int	main(int argc, char **argv)
 		pmergeMe.parseInput(argc, argv);
 		pmergeMe.printBefore();
 		pmergeMe.sortVector();
+		pmergeMe.sortDeque();
 		pmergeMe.printAfterVector();
 	}
 	catch (const std::exception& e)

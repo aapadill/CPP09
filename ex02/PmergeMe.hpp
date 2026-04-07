@@ -31,6 +31,7 @@ class PmergeMe
 		void	printBefore() const;
 		void	sortVector();
 		void	printAfterVector() const;
+		void	sortDeque();
 
 	private:
 		//vector
@@ -53,10 +54,31 @@ class PmergeMe
 			bool		hasWinner;
 		};
 
+		// Deque-side data.
+		struct DequeItem
+		{
+			int			value;
+			std::size_t	id;
+		};
+
+		struct DequePair
+		{
+			DequeItem	winner;
+			DequeItem	loser;
+		};
+
+		struct PendingDequeLoser
+		{
+			DequeItem	item;
+			std::size_t	winnerId;
+			bool		hasWinner;
+		};
+
 		//storing
 		std::vector<int>	_vectorInput;
 		std::vector<int>	_vectorSorted;
 		std::deque<int>		_dequeInput;
+		std::deque<int>		_dequeSorted;
 
 		//helpers
 		static int	parsePositiveInt(const std::string& token);
@@ -90,4 +112,34 @@ class PmergeMe
 		static std::size_t	binaryInsertPosition(const std::vector<VectorItem>& chain,
 												 const VectorItem& item,
 													   std::size_t end);
+
+		//helpers for std::deque version of algo
+		static std::deque<DequeItem>	fordJohnsonDeque(const std::deque<DequeItem>& items);
+		static std::deque<DequeItem>	makeDequeItems(const std::deque<int>& values);
+		static std::deque<int>			extractDequeValues(const std::deque<DequeItem>& items);
+		static void						buildDequePairs(const std::deque<DequeItem>& items,
+											std::deque<DequePair>& pairs,
+											std::deque<DequeItem>& winners,
+											DequeItem& straggler,
+											bool& hasStraggler);
+		static std::deque<DequePair>	orderDequePairsByWinners(
+											const std::deque<DequePair>& pairs,
+											const std::deque<DequeItem>& sortedWinners);
+		static std::deque<DequeItem>	buildInitialDequeChain(
+											const std::deque<DequePair>& orderedPairs,
+											const std::deque<DequeItem>& sortedWinners);
+		static std::deque<PendingDequeLoser>	buildPendingDequeLosers(
+											const std::deque<DequePair>& orderedPairs,
+											const DequeItem& straggler,
+											bool hasStraggler);
+		static void						insertPendingDequeLosers(
+											std::deque<DequeItem>& chain,
+											const std::deque<PendingDequeLoser>& pendingLosers);
+		static std::size_t				findDequeWinnerPosition(
+											const std::deque<DequeItem>& chain,
+											std::size_t winnerId);
+		static std::size_t				binaryDequeInsertPosition(
+											const std::deque<DequeItem>& chain,
+											const DequeItem& item,
+											std::size_t end);
 };
