@@ -26,8 +26,7 @@ int	main(int argc, char **argv)
 		pmergeMe.sortVector();
 		pmergeMe.sortDeque();
 		pmergeMe.printAfterVector();
-		pmergeMe.printVectorTiming();
-		pmergeMe.printDequeTiming();
+		pmergeMe.printTimings();
 	}
 	catch (const std::exception& e)
 	{

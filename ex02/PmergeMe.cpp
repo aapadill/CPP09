@@ -16,54 +16,18 @@
 #include <charconv>
 #include <iomanip>
 #include <iostream>
-#include <memory>
 #include <stdexcept>
 #include <string>
 
-struct TaggedValue
-{
-	int			value;
-	std::size_t	id;
-};
-
-struct TaggedPair
-{
-	TaggedValue	winner;
-	TaggedValue	loser;
-};
-
-struct PendingTaggedValue
-{
-	TaggedValue	item;
-	std::size_t	winnerId;
-	bool		hasWinner;
-};
-
-template <typename T, typename Container>
-struct RebindContainer;
-
-template <typename T, template <typename, typename> class Sequence,
-	typename ValueType, typename Allocator>
-struct RebindContainer<T, Sequence<ValueType, Allocator> >
-{
-	typedef Sequence<T, std::allocator<T> >	type;
-};
-
-template <typename T, typename Container>
-using ReboundContainer = typename RebindContainer<T, Container>::type;
-
 int	parsePositiveInt(const std::string& token)
 {
-	int						value;
-	const char				*begin;
-	const char				*end;
-	std::from_chars_result	result;
+	int		value;
 
 	if (token.empty())
 		throw std::runtime_error("Error");
-	begin = token.c_str();
-	end = begin + token.length();
-	result = std::from_chars(begin, end, value);
+	auto	begin = token.c_str();
+	auto	end = begin + token.length();
+	auto	result = std::from_chars(begin, end, value);
 	if (result.ec != std::errc() || result.ptr != end || value <= 0)
 		throw std::runtime_error("Error");
 	return value;
@@ -71,7 +35,7 @@ int	parsePositiveInt(const std::string& token)
 
 void	printSequence(const std::vector<int>& sequence)
 {
-	auto	i = std::size_t(0); //std::size_t
+	std::size_t	i = 0;
 
 	while (i < sequence.size())
 	{
@@ -85,10 +49,10 @@ void	printSequence(const std::vector<int>& sequence)
 
 std::size_t	jacobsthal(std::size_t n)
 {
-	auto	previous = std::size_t(0); //std::size_t
-	auto	current = std::size_t(1); //std::size_t
-	auto	next = std::size_t(0); //std::size_t
-	auto	index = std::size_t(2); //std::size_t
+	std::size_t	previous = 0;
+	std::size_t	current = 1;
+	std::size_t	next = 0;
+	std::size_t	index = 2;
 
 	if (n == 0)
 		return 0;
@@ -104,13 +68,13 @@ std::size_t	jacobsthal(std::size_t n)
 	return current;
 }
 
-std::vector<std::size_t>	buildInsertionOrder(std::size_t loserCount)
+auto	buildInsertionOrder(std::size_t loserCount)
 {
-	auto	order = std::vector<std::size_t>(); //std::vector<std::size_t>
-	auto	previousBoundary = std::size_t(1); //std::size_t
-	auto	currentBoundary = std::size_t(0); //std::size_t
-	auto	jacobsthalIndex = std::size_t(3); //std::size_t
-	auto	index = std::size_t(0); //std::size_t
+	std::vector<std::size_t>	order;
+	std::size_t				previousBoundary = 1;
+	std::size_t				currentBoundary = 0;
+	std::size_t				jacobsthalIndex = 3;
+	std::size_t				index = 0;
 
 	if (loserCount <= 1)
 		return order;
@@ -134,11 +98,11 @@ std::vector<std::size_t>	buildInsertionOrder(std::size_t loserCount)
 }
 
 template <typename IntContainer>
-ReboundContainer<TaggedValue, IntContainer>	makeItems(const IntContainer& values)
+auto	makeItems(const IntContainer& values)
 {
-	auto	items = ReboundContainer<TaggedValue, IntContainer>(); //ReboundContainer<TaggedValue, IntContainer>
-	auto	item = TaggedValue(); //TaggedValue
-	auto	i = std::size_t(0); //std::size_t
+	typename TaggedValues<IntContainer>::type	items;
+	TaggedValue				item;
+	std::size_t				i = 0;
 
 	while (i < values.size())
 	{
@@ -151,11 +115,10 @@ ReboundContainer<TaggedValue, IntContainer>	makeItems(const IntContainer& values
 }
 
 template <typename IntContainer>
-IntContainer	extractValues(
-	const ReboundContainer<TaggedValue, IntContainer>& items)
+auto	extractValues(const typename TaggedValues<IntContainer>::type& items)
 {
-	auto	values = IntContainer(); //IntContainer
-	auto	i = std::size_t(0); //std::size_t
+	IntContainer	values;
+	std::size_t		i = 0;
 
 	while (i < items.size())
 	{
@@ -167,11 +130,11 @@ IntContainer	extractValues(
 
 template <typename ItemContainer>
 void	buildPairs(const ItemContainer& items,
-	ReboundContainer<TaggedPair, ItemContainer>& pairs,
+	typename TaggedPairs<ItemContainer>::type& pairs,
 	ItemContainer& winners, TaggedValue& straggler, bool& hasStraggler)
 {
-	auto	pair = TaggedPair(); //TaggedPair
-	auto	i = std::size_t(0); //std::size_t
+	TaggedPair	pair;
+	std::size_t	i = 0;
 
 	hasStraggler = false;
 	while (i + 1 < items.size())
@@ -198,17 +161,17 @@ void	buildPairs(const ItemContainer& items,
 }
 
 template <typename ItemContainer>
-ReboundContainer<TaggedPair, ItemContainer>	orderPairsByWinners(
-	const ReboundContainer<TaggedPair, ItemContainer>& pairs,
+auto	orderPairsByWinners(
+	const typename TaggedPairs<ItemContainer>::type& pairs,
 	const ItemContainer& sortedWinners)
 {
-	auto	orderedPairs = ReboundContainer<TaggedPair, ItemContainer>(); //ReboundContainer<TaggedPair, ItemContainer>
-	auto	winnerIndex = std::size_t(0); //std::size_t
-	auto	pairIndex = std::size_t(0); //std::size_t
+	typename TaggedPairs<ItemContainer>::type	orderedPairs;
+	std::size_t				winnerIndex = 0;
+	std::size_t				pairIndex = 0;
 
 	while (winnerIndex < sortedWinners.size())
 	{
-		pairIndex = std::size_t(0);
+		pairIndex = 0;
 		while (pairIndex < pairs.size())
 		{
 			if (pairs[pairIndex].winner.id == sortedWinners[winnerIndex].id)
@@ -224,12 +187,12 @@ ReboundContainer<TaggedPair, ItemContainer>	orderPairsByWinners(
 }
 
 template <typename ItemContainer>
-ItemContainer	buildInitialChain(
-	const ReboundContainer<TaggedPair, ItemContainer>& orderedPairs,
+auto	buildInitialChain(
+	const typename TaggedPairs<ItemContainer>::type& orderedPairs,
 	const ItemContainer& sortedWinners)
 {
-	auto	chain = ItemContainer(); //ItemContainer
-	auto	i = std::size_t(0); //std::size_t
+	ItemContainer	chain;
+	std::size_t		i = 0;
 
 	chain.push_back(orderedPairs[0].loser);
 	while (i < sortedWinners.size())
@@ -241,12 +204,12 @@ ItemContainer	buildInitialChain(
 }
 
 template <typename ItemContainer>
-ReboundContainer<PendingTaggedValue, ItemContainer>	buildPendingLosers(
-	const ReboundContainer<TaggedPair, ItemContainer>& orderedPairs,
+auto	buildPendingLosers(
+	const typename TaggedPairs<ItemContainer>::type& orderedPairs,
 	const TaggedValue& straggler, bool hasStraggler)
 {
-	auto	pendingLosers = ReboundContainer<PendingTaggedValue, ItemContainer>(); //ReboundContainer<PendingTaggedValue, ItemContainer>
-	auto	i = std::size_t(0); //std::size_t
+	typename PendingTaggedValues<ItemContainer>::type	pendingLosers;
+	std::size_t									i = 0;
 
 	pendingLosers.resize(orderedPairs.size() + (hasStraggler ? 1 : 0) + 1);
 	while (i < orderedPairs.size())
@@ -266,10 +229,9 @@ ReboundContainer<PendingTaggedValue, ItemContainer>	buildPendingLosers(
 }
 
 template <typename ItemContainer>
-std::size_t	findWinnerPosition(const ItemContainer& chain,
-	std::size_t winnerId)
+std::size_t	findWinnerPosition(const ItemContainer& chain, std::size_t winnerId)
 {
-	auto	i = std::size_t(0); //std::size_t
+	std::size_t	i = 0;
 
 	while (i < chain.size())
 	{
@@ -284,9 +246,9 @@ template <typename ItemContainer>
 std::size_t	binaryInsertPosition(const ItemContainer& chain,
 	const typename ItemContainer::value_type& item, std::size_t end)
 {
-	auto	left = std::size_t(0); //std::size_t
-	auto	right = end; //std::size_t
-	auto	middle = std::size_t(0); //std::size_t
+	std::size_t	left = 0;
+	std::size_t	right = end;
+	std::size_t	middle = 0;
 
 	while (left < right)
 	{
@@ -301,13 +263,13 @@ std::size_t	binaryInsertPosition(const ItemContainer& chain,
 
 template <typename ItemContainer>
 void	insertPendingLosers(ItemContainer& chain,
-	const ReboundContainer<PendingTaggedValue, ItemContainer>& pendingLosers)
+	const typename PendingTaggedValues<ItemContainer>::type& pendingLosers)
 {
-	auto	insertionOrder = buildInsertionOrder(pendingLosers.size() - 1); //std::vector<std::size_t>
-	auto	orderIndex = std::size_t(0); //std::size_t
-	auto	pendingIndex = std::size_t(0); //std::size_t
-	auto	limit = std::size_t(0); //std::size_t
-	auto	position = std::size_t(0); //std::size_t
+	auto					insertionOrder = buildInsertionOrder(pendingLosers.size() - 1);
+	std::size_t				orderIndex = 0;
+	std::size_t				pendingIndex = 0;
+	std::size_t				limit = 0;
+	std::size_t				position = 0;
 
 	while (orderIndex < insertionOrder.size())
 	{
@@ -325,35 +287,54 @@ void	insertPendingLosers(ItemContainer& chain,
 }
 
 template <typename ItemContainer>
-ItemContainer	fordJohnson(const ItemContainer& items)
+auto	fordJohnson(const ItemContainer& items)
 {
-	auto	pairs = ReboundContainer<TaggedPair, ItemContainer>(); //ReboundContainer<TaggedPair, ItemContainer>
-	auto	winners = ItemContainer(); //ItemContainer
-	auto	sortedWinners = ItemContainer(); //ItemContainer
-	auto	orderedPairs = ReboundContainer<TaggedPair, ItemContainer>(); //ReboundContainer<TaggedPair, ItemContainer>
-	auto	chain = ItemContainer(); //ItemContainer
-	auto	straggler = TaggedValue(); //TaggedValue
-	auto	hasStraggler = false; //bool
+	typename TaggedPairs<ItemContainer>::type	pairs;
+	ItemContainer	winners;
+	TaggedValue		straggler;
+	bool			hasStraggler = false;
 
 	if (items.size() <= 1)
 		return items;
 	buildPairs(items, pairs, winners, straggler, hasStraggler);
-	sortedWinners = fordJohnson(winners);
-	orderedPairs = orderPairsByWinners(pairs, sortedWinners);
-	chain = buildInitialChain(orderedPairs, sortedWinners);
+	auto	sortedWinners = fordJohnson(winners);
+	auto	orderedPairs = orderPairsByWinners(pairs, sortedWinners);
+	auto	chain = buildInitialChain(orderedPairs, sortedWinners);
 	insertPendingLosers(chain,
 		buildPendingLosers<ItemContainer>(orderedPairs, straggler, hasStraggler));
 	return chain;
 }
 
 template <typename IntContainer>
-IntContainer	sortValues(const IntContainer& input)
+auto	sortValues(const IntContainer& input)
 {
-	return extractValues<IntContainer>(fordJohnson(makeItems(input)));
+	auto	items = makeItems(input);
+	auto	sortedItems = fordJohnson(items);
+	auto	sortedValues = extractValues<IntContainer>(sortedItems);
+
+	return sortedValues;
 }
 
-PmergeMe::PmergeMe()
-	: _vectorTimeUs(0.0), _dequeTimeUs(0.0)
+template <typename IntContainer>
+void	sortAndMeasure(const IntContainer& input, IntContainer& output, double& timeUs)
+{
+	auto	start = std::chrono::steady_clock::now();
+
+	output = sortValues(input);
+
+	auto	end = std::chrono::steady_clock::now();
+	timeUs = std::chrono::duration<double, std::micro>(end - start).count();
+}
+
+void	printTimingLine(const char *containerName, std::size_t elementCount, double timeUs)
+{
+	std::cout << std::fixed << std::setprecision(6)
+		<< "Time to process a range of " << elementCount
+		<< " elements with " << containerName << " : " << timeUs << " us"
+		<< std::endl;
+}
+
+PmergeMe::PmergeMe() : _vectorTimeUs(0.0), _dequeTimeUs(0.0)
 {
 }
 
@@ -413,13 +394,7 @@ void	PmergeMe::printBefore() const
 
 void	PmergeMe::sortVector()
 {
-	std::chrono::steady_clock::time_point	start;
-	std::chrono::steady_clock::time_point	end;
-
-	start = std::chrono::steady_clock::now();
-	_vectorSorted = sortValues(_vectorInput);
-	end = std::chrono::steady_clock::now();
-	_vectorTimeUs = std::chrono::duration<double, std::micro>(end - start).count();
+	sortAndMeasure(_vectorInput, _vectorSorted, _vectorTimeUs);
 }
 
 void	PmergeMe::printAfterVector() const
@@ -430,27 +405,11 @@ void	PmergeMe::printAfterVector() const
 
 void	PmergeMe::sortDeque()
 {
-	std::chrono::steady_clock::time_point	start;
-	std::chrono::steady_clock::time_point	end;
-
-	start = std::chrono::steady_clock::now();
-	_dequeSorted = sortValues(_dequeInput);
-	end = std::chrono::steady_clock::now();
-	_dequeTimeUs = std::chrono::duration<double, std::micro>(end - start).count();
+	sortAndMeasure(_dequeInput, _dequeSorted, _dequeTimeUs);
 }
 
-void	PmergeMe::printVectorTiming() const
+void	PmergeMe::printTimings() const
 {
-	std::cout << std::fixed << std::setprecision(6)
-		<< "Time to process a range of " << _vectorInput.size()
-		<< " elements with std::vector : " << _vectorTimeUs << " us"
-		<< std::endl;
-}
-
-void	PmergeMe::printDequeTiming() const
-{
-	std::cout << std::fixed << std::setprecision(6)
-		<< "Time to process a range of " << _dequeInput.size()
-		<< " elements with std::deque : " << _dequeTimeUs << " us"
-		<< std::endl;
+	printTimingLine("std::vector", _vectorInput.size(), _vectorTimeUs);
+	printTimingLine("std::deque", _dequeInput.size(), _dequeTimeUs);
 }

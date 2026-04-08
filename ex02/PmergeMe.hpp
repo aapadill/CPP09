@@ -14,7 +14,61 @@
 
 #include <cstddef>
 #include <deque>
+#include <memory>
 #include <vector>
+
+struct TaggedValue
+{
+	int			value;
+	std::size_t	id;
+};
+
+struct TaggedPair
+{
+	TaggedValue	winner;
+	TaggedValue	loser;
+};
+
+struct PendingTaggedValue
+{
+	TaggedValue	item;
+	std::size_t	winnerId;
+	bool		hasWinner;
+};
+
+template <typename T, typename Container>
+struct RebindContainer;
+
+template <typename T, template <typename, typename> class Sequence,
+typename ValueType, typename Allocator>
+struct RebindContainer<T, Sequence<ValueType, Allocator> >
+{
+	typedef Sequence<T, std::allocator<T> >	type;
+};
+
+template <typename T, typename Container>
+struct Rebound
+{
+	typedef typename RebindContainer<T, Container>::type	type;
+};
+
+template <typename Container>
+struct TaggedValues
+{
+	typedef typename RebindContainer<TaggedValue, Container>::type	type;
+};
+
+template <typename Container>
+struct TaggedPairs
+{
+	typedef typename RebindContainer<TaggedPair, Container>::type	type;
+};
+
+template <typename Container>
+struct PendingTaggedValues
+{
+	typedef typename RebindContainer<PendingTaggedValue, Container>::type	type;
+};
 
 class PmergeMe
 {
@@ -31,8 +85,7 @@ class PmergeMe
 		void	sortVector();
 		void	printAfterVector() const;
 		void	sortDeque();
-		void	printVectorTiming() const;
-		void	printDequeTiming() const;
+		void	printTimings() const;
 
 	private:
 		//storing
