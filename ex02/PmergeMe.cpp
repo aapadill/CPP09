@@ -129,9 +129,7 @@ auto	extractValues(const typename TaggedValues<IntContainer>::type& items)
 }
 
 template <typename ItemContainer>
-void	buildPairs(const ItemContainer& items,
-	typename TaggedPairs<ItemContainer>::type& pairs,
-	ItemContainer& winners, TaggedValue& straggler, bool& hasStraggler)
+void	buildPairs(const ItemContainer& items, typename TaggedPairs<ItemContainer>::type& pairs, ItemContainer& winners, TaggedValue& straggler, bool& hasStraggler)
 {
 	TaggedPair	pair;
 	std::size_t	i = 0;
@@ -161,9 +159,7 @@ void	buildPairs(const ItemContainer& items,
 }
 
 template <typename ItemContainer>
-auto	orderPairsByWinners(
-	const typename TaggedPairs<ItemContainer>::type& pairs,
-	const ItemContainer& sortedWinners)
+auto	orderPairsByWinners(const typename TaggedPairs<ItemContainer>::type& pairs, const ItemContainer& sortedWinners)
 {
 	typename TaggedPairs<ItemContainer>::type	orderedPairs;
 	std::size_t				winnerIndex = 0;
@@ -187,9 +183,7 @@ auto	orderPairsByWinners(
 }
 
 template <typename ItemContainer>
-auto	buildInitialChain(
-	const typename TaggedPairs<ItemContainer>::type& orderedPairs,
-	const ItemContainer& sortedWinners)
+auto	buildInitialChain(const typename TaggedPairs<ItemContainer>::type& orderedPairs, const ItemContainer& sortedWinners)
 {
 	ItemContainer	chain;
 	std::size_t		i = 0;
@@ -204,14 +198,17 @@ auto	buildInitialChain(
 }
 
 template <typename ItemContainer>
-auto	buildPendingLosers(
-	const typename TaggedPairs<ItemContainer>::type& orderedPairs,
-	const TaggedValue& straggler, bool hasStraggler)
+auto	buildPendingLosers(const typename TaggedPairs<ItemContainer>::type& orderedPairs, const TaggedValue& straggler, bool hasStraggler)
 {
 	typename PendingTaggedValues<ItemContainer>::type	pendingLosers;
 	std::size_t									i = 0;
+	std::size_t									pendingSize;
 
-	pendingLosers.resize(orderedPairs.size() + (hasStraggler ? 1 : 0) + 1);
+	if (hasStraggler)
+		pendingSize = orderedPairs.size() + 2;
+	else
+		pendingSize = orderedPairs.size() + 1;
+	pendingLosers.resize(pendingSize);
 	while (i < orderedPairs.size())
 	{
 		pendingLosers[i + 1].item = orderedPairs[i].loser;
@@ -243,8 +240,7 @@ std::size_t	findWinnerPosition(const ItemContainer& chain, std::size_t winnerId)
 }
 
 template <typename ItemContainer>
-std::size_t	binaryInsertPosition(const ItemContainer& chain,
-	const typename ItemContainer::value_type& item, std::size_t end)
+std::size_t	binaryInsertPosition(const ItemContainer& chain, const typename ItemContainer::value_type& item, std::size_t end)
 {
 	std::size_t	left = 0;
 	std::size_t	right = end;
@@ -262,8 +258,7 @@ std::size_t	binaryInsertPosition(const ItemContainer& chain,
 }
 
 template <typename ItemContainer>
-void	insertPendingLosers(ItemContainer& chain,
-	const typename PendingTaggedValues<ItemContainer>::type& pendingLosers)
+void	insertPendingLosers(ItemContainer& chain, const typename PendingTaggedValues<ItemContainer>::type& pendingLosers)
 {
 	auto					insertionOrder = buildInsertionOrder(pendingLosers.size() - 1);
 	std::size_t				orderIndex = 0;
@@ -338,10 +333,7 @@ PmergeMe::PmergeMe() : _vectorTimeUs(0.0), _dequeTimeUs(0.0)
 {
 }
 
-PmergeMe::PmergeMe(const PmergeMe& other)
-	: _vectorInput(other._vectorInput), _vectorSorted(other._vectorSorted),
-		_dequeInput(other._dequeInput), _dequeSorted(other._dequeSorted),
-		_vectorTimeUs(other._vectorTimeUs), _dequeTimeUs(other._dequeTimeUs)
+PmergeMe::PmergeMe(const PmergeMe& other): _vectorInput(other._vectorInput), _vectorSorted(other._vectorSorted), _dequeInput(other._dequeInput), _dequeSorted(other._dequeSorted), _vectorTimeUs(other._vectorTimeUs), _dequeTimeUs(other._dequeTimeUs)
 {
 }
 
