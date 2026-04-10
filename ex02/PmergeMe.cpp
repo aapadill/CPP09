@@ -6,402 +6,266 @@
 /*   By: aapadill <aapadill@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/27 16:31:18 by aapadill          #+#    #+#             */
-/*   Updated: 2026/04/07 16:14:23 by aapadill         ###   ########.fr       */
+/*   Updated: 2026/04/10 00:00:00 by aapadill         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "PmergeMe.hpp"
-
-#include <chrono>
+ 
+#include <algorithm>
 #include <charconv>
+#include <chrono>
 #include <iomanip>
 #include <iostream>
 #include <stdexcept>
-#include <string>
-
-int	parsePositiveInt(const std::string& token)
+#include <unordered_map>
+#include <utility>
+ 
+int	parsePositiveInt(const char *s, std::size_t len)
 {
-	int		value;
-
-	if (token.empty())
+	int	value;
+ 
+	if (len == 0)
 		throw std::runtime_error("Error");
-	auto	begin = token.c_str();
-	auto	end = begin + token.length();
-	auto	result = std::from_chars(begin, end, value);
-	if (result.ec != std::errc() || result.ptr != end || value <= 0)
+	auto res = std::from_chars(s, s + len, value);
+	if (res.ec != std::errc() || res.ptr != s + len || value <= 0)
 		throw std::runtime_error("Error");
 	return value;
 }
-
-void	printSequence(const std::vector<int>& sequence)
+ 
+std::size_t	jacobsthal(std::size_t n)
 {
-	std::size_t	i = 0;
-
-	while (i < sequence.size())
+	std::size_t	prev = 0;
+	std::size_t	curr = 1;
+	std::size_t	i = 2;
+ 
+	while (i <= n)
+	{
+		std::size_t next = curr + 2 * prev;
+		prev = curr;
+		curr = next;
+		++i;
+	}
+	return curr;
+}
+ 
+std::vector<std::size_t>	insertionOrder(std::size_t count)
+{
+	std::vector<std::size_t>	order;
+	std::size_t					prevBound = 1;
+	std::size_t					ji = 3;
+ 
+	while (prevBound < count)
+	{
+		std::size_t bound = jacobsthal(ji);
+		if (bound > count)
+			bound = count;
+		std::size_t idx = bound;
+		while (idx > prevBound)
+		{
+			order.push_back(idx);
+			--idx;
+		}
+		if (bound == count)
+			break;
+		prevBound = bound;
+		++ji;
+	}
+	return order;
+}
+ 
+/*
+** losers[k] = {bk, ak} where ak == -1 means no bound (straggler)
+** losers[0] is a dummy; losers[1].first is the freebie (b1)
+*/
+template <typename C>
+void	mergeInsert(C& seq)
+{
+	if (seq.size() < 2)
+		return;
+ 
+	//phase 1: pair up and compare
+	std::vector<std::pair<int,int>>	aux_pairs;
+	C								mainChain;
+	int								straggler = -1;
+	std::size_t						i = 0;
+ 
+	while (i + 1 < seq.size())
+	{
+		int winner = seq[i];
+		int loser = seq[i + 1];
+		if (winner < loser)
+			std::swap(winner, loser);
+		aux_pairs.push_back({winner, loser});
+		mainChain.push_back(winner);
+		i += 2;
+	}
+	if (i < seq.size())
+		straggler = seq[i];
+ 
+	//phase 2: recursively sort winners (main chain)
+	mergeInsert(mainChain);
+ 
+	//reorder pairs to match sorted main chain using a hash map
+	std::unordered_map<int, std::vector<int>>	aux_winToLoser;
+	i = 0;
+	while (i < aux_pairs.size())
+	{
+		aux_winToLoser[aux_pairs[i].first].push_back(aux_pairs[i].second);
+		++i;
+	}
+ 
+	//build losers: losers[k] = {bk, ak} (1-indexed, 0 is dummy)
+	std::vector<std::pair<int,int>>	losers;
+	losers.push_back({-1, -1});
+	i = 0;
+	while (i < mainChain.size())
+	{
+		auto& aux_bucket = aux_winToLoser[mainChain[i]];
+		losers.push_back({aux_bucket.back(), mainChain[i]});
+		aux_bucket.pop_back();
+		++i;
+	}
+	if (straggler != -1)
+		losers.push_back({straggler, -1});
+ 
+	//phase 3: insertion of losers into main chain
+	if (losers.size() <= 1)
+	{
+		seq = mainChain;
+		return;
+	}
+ 
+	// b1 is free, it's smaller than a1 (the smallest winner)
+	mainChain.insert(mainChain.begin(), losers[1].first);
+ 
+	auto	aux_jacobOrder = insertionOrder(losers.size() - 1);
+	std::size_t	oi = 0;
+ 
+	while (oi < aux_jacobOrder.size())
+	{
+		std::size_t	li = aux_jacobOrder[oi];
+		int			loser = losers[li].first;
+		int			winner = losers[li].second;
+ 
+		//find insertion upper bound (position of paired winner)
+		std::size_t	limit = mainChain.size();
+		if (winner != -1)
+		{
+			auto it = std::find(mainChain.begin(), mainChain.end(), winner);
+			if (it != mainChain.end())
+				limit = static_cast<std::size_t>(it - mainChain.begin()); //we can implictly cast here right?
+		}
+ 
+		//binary search within [0, limit)
+		auto pos = std::lower_bound(
+			mainChain.begin(),
+			mainChain.begin() + static_cast<std::ptrdiff_t>(limit),
+			loser);
+		mainChain.insert(pos, loser);
+		++oi;
+	}
+ 
+	seq = mainChain;
+}
+ 
+template <typename C>
+void	sortAndMeasure(const C& input, C& output, double& us)
+{
+	auto start = std::chrono::steady_clock::now();
+	output = input;
+	mergeInsert(output);
+	auto end = std::chrono::steady_clock::now();
+	us = std::chrono::duration<double, std::micro>(end - start).count();
+}
+ 
+//OCF stuff
+PmergeMe::PmergeMe() : _vecUs(0.0), _deqUs(0.0) {}
+ 
+PmergeMe::PmergeMe(const PmergeMe& o)
+	: _vecIn(o._vecIn), _vecOut(o._vecOut),
+	  _deqIn(o._deqIn), _deqOut(o._deqOut),
+	  _vecUs(o._vecUs), _deqUs(o._deqUs) {}
+ 
+PmergeMe::~PmergeMe() {}
+ 
+PmergeMe&	PmergeMe::operator=(const PmergeMe& o)
+{
+	if (this != &o)
+	{
+		_vecIn = o._vecIn;
+		_vecOut = o._vecOut;
+		_deqIn = o._deqIn;
+		_deqOut = o._deqOut;
+		_vecUs = o._vecUs;
+		_deqUs = o._deqUs;
+	}
+	return *this;
+}
+ 
+//parsing
+void	PmergeMe::parseInput(int argc, char **argv)
+{
+	if (argc < 2)
+		throw std::runtime_error("Error");
+	_vecIn.clear();
+	_deqIn.clear();
+	_vecUs = 0.0;
+	_deqUs = 0.0;
+	int i = 1;
+	while (i < argc)
+	{
+		std::string tok(argv[i]);
+		int val = parsePositiveInt(tok.c_str(), tok.size());
+		_vecIn.push_back(val);
+		_deqIn.push_back(val);
+		++i;
+	}
+}
+ 
+void	PmergeMe::printBefore() const
+{
+	std::cout << "Before: ";
+	std::size_t i = 0;
+	while (i < _vecIn.size())
 	{
 		if (i != 0)
 			std::cout << ' ';
-		std::cout << sequence[i];
+		std::cout << _vecIn[i];
 		++i;
 	}
 	std::cout << std::endl;
 }
-
-std::size_t	jacobsthal(std::size_t n)
-{
-	std::size_t	previous = 0;
-	std::size_t	current = 1;
-	std::size_t	next = 0;
-	std::size_t	index = 2;
-
-	if (n == 0)
-		return 0;
-	if (n == 1)
-		return 1;
-	while (index <= n)
-	{
-		next = current + (2 * previous);
-		previous = current;
-		current = next;
-		++index;
-	}
-	return current;
-}
-
-auto	buildInsertionOrder(std::size_t loserCount)
-{
-	std::vector<std::size_t>	order;
-	std::size_t				previousBoundary = 1;
-	std::size_t				currentBoundary = 0;
-	std::size_t				jacobsthalIndex = 3;
-	std::size_t				index = 0;
-
-	if (loserCount <= 1)
-		return order;
-	while (previousBoundary < loserCount)
-	{
-		currentBoundary = jacobsthal(jacobsthalIndex);
-		if (currentBoundary > loserCount)
-			currentBoundary = loserCount;
-		index = currentBoundary;
-		while (index > previousBoundary)
-		{
-			order.push_back(index);
-			--index;
-		}
-		if (currentBoundary == loserCount)
-			break ;
-		previousBoundary = currentBoundary;
-		++jacobsthalIndex;
-	}
-	return order;
-}
-
-template <typename IntContainer>
-auto	makeItems(const IntContainer& values)
-{
-	typename TaggedValues<IntContainer>::type	items;
-	TaggedValue				item;
-	std::size_t				i = 0;
-
-	while (i < values.size())
-	{
-		item.value = values[i];
-		item.id = i;
-		items.push_back(item);
-		++i;
-	}
-	return items;
-}
-
-template <typename IntContainer>
-auto	extractValues(const typename TaggedValues<IntContainer>::type& items)
-{
-	IntContainer	values;
-	std::size_t		i = 0;
-
-	while (i < items.size())
-	{
-		values.push_back(items[i].value);
-		++i;
-	}
-	return values;
-}
-
-template <typename ItemContainer>
-void	buildPairs(const ItemContainer& items, typename TaggedPairs<ItemContainer>::type& pairs, ItemContainer& winners, TaggedValue& straggler, bool& hasStraggler)
-{
-	TaggedPair	pair;
-	std::size_t	i = 0;
-
-	hasStraggler = false;
-	while (i + 1 < items.size())
-	{
-		if (items[i].value > items[i + 1].value)
-		{
-			pair.winner = items[i];
-			pair.loser = items[i + 1];
-		}
-		else
-		{
-			pair.winner = items[i + 1];
-			pair.loser = items[i];
-		}
-		pairs.push_back(pair);
-		winners.push_back(pair.winner);
-		i += 2;
-	}
-	if (i < items.size())
-	{
-		straggler = items[i];
-		hasStraggler = true;
-	}
-}
-
-template <typename ItemContainer>
-auto	orderPairsByWinners(const typename TaggedPairs<ItemContainer>::type& pairs, const ItemContainer& sortedWinners)
-{
-	typename TaggedPairs<ItemContainer>::type	orderedPairs;
-	std::size_t				winnerIndex = 0;
-	std::size_t				pairIndex = 0;
-
-	while (winnerIndex < sortedWinners.size())
-	{
-		pairIndex = 0;
-		while (pairIndex < pairs.size())
-		{
-			if (pairs[pairIndex].winner.id == sortedWinners[winnerIndex].id)
-			{
-				orderedPairs.push_back(pairs[pairIndex]);
-				break ;
-			}
-			++pairIndex;
-		}
-		++winnerIndex;
-	}
-	return orderedPairs;
-}
-
-template <typename ItemContainer>
-auto	buildInitialChain(const typename TaggedPairs<ItemContainer>::type& orderedPairs, const ItemContainer& sortedWinners)
-{
-	ItemContainer	chain;
-	std::size_t		i = 0;
-
-	chain.push_back(orderedPairs[0].loser);
-	while (i < sortedWinners.size())
-	{
-		chain.push_back(sortedWinners[i]);
-		++i;
-	}
-	return chain;
-}
-
-template <typename ItemContainer>
-auto	buildPendingLosers(const typename TaggedPairs<ItemContainer>::type& orderedPairs, const TaggedValue& straggler, bool hasStraggler)
-{
-	typename PendingTaggedValues<ItemContainer>::type	pendingLosers;
-	std::size_t									i = 0;
-	std::size_t									pendingSize;
-
-	if (hasStraggler)
-		pendingSize = orderedPairs.size() + 2;
-	else
-		pendingSize = orderedPairs.size() + 1;
-	pendingLosers.resize(pendingSize);
-	while (i < orderedPairs.size())
-	{
-		pendingLosers[i + 1].item = orderedPairs[i].loser;
-		pendingLosers[i + 1].winnerId = orderedPairs[i].winner.id;
-		pendingLosers[i + 1].hasWinner = true;
-		++i;
-	}
-	if (hasStraggler)
-	{
-		pendingLosers[orderedPairs.size() + 1].item = straggler;
-		pendingLosers[orderedPairs.size() + 1].winnerId = 0;
-		pendingLosers[orderedPairs.size() + 1].hasWinner = false;
-	}
-	return pendingLosers;
-}
-
-template <typename ItemContainer>
-std::size_t	findWinnerPosition(const ItemContainer& chain, std::size_t winnerId)
-{
-	std::size_t	i = 0;
-
-	while (i < chain.size())
-	{
-		if (chain[i].id == winnerId)
-			return i;
-		++i;
-	}
-	return chain.size();
-}
-
-template <typename ItemContainer>
-std::size_t	binaryInsertPosition(const ItemContainer& chain, const typename ItemContainer::value_type& item, std::size_t end)
-{
-	std::size_t	left = 0;
-	std::size_t	right = end;
-	std::size_t	middle = 0;
-
-	while (left < right)
-	{
-		middle = left + ((right - left) / 2);
-		if (chain[middle].value < item.value)
-			left = middle + 1;
-		else
-			right = middle;
-	}
-	return left;
-}
-
-template <typename ItemContainer>
-void	insertPendingLosers(ItemContainer& chain, const typename PendingTaggedValues<ItemContainer>::type& pendingLosers)
-{
-	auto					insertionOrder = buildInsertionOrder(pendingLosers.size() - 1);
-	std::size_t				orderIndex = 0;
-	std::size_t				pendingIndex = 0;
-	std::size_t				limit = 0;
-	std::size_t				position = 0;
-
-	while (orderIndex < insertionOrder.size())
-	{
-		pendingIndex = insertionOrder[orderIndex];
-		if (pendingLosers[pendingIndex].hasWinner)
-			limit = findWinnerPosition(chain, pendingLosers[pendingIndex].winnerId);
-		else
-			limit = chain.size();
-		position = binaryInsertPosition(chain, pendingLosers[pendingIndex].item,
-				limit);
-		chain.insert(chain.begin() + static_cast<std::ptrdiff_t>(position),
-			pendingLosers[pendingIndex].item);
-		++orderIndex;
-	}
-}
-
-template <typename ItemContainer>
-auto	fordJohnson(const ItemContainer& items)
-{
-	typename TaggedPairs<ItemContainer>::type	pairs;
-	ItemContainer	winners;
-	TaggedValue		straggler;
-	bool			hasStraggler = false;
-
-	if (items.size() <= 1)
-		return items;
-	buildPairs(items, pairs, winners, straggler, hasStraggler);
-	auto	sortedWinners = fordJohnson(winners);
-	auto	orderedPairs = orderPairsByWinners(pairs, sortedWinners);
-	auto	chain = buildInitialChain(orderedPairs, sortedWinners);
-	insertPendingLosers(chain,
-		buildPendingLosers<ItemContainer>(orderedPairs, straggler, hasStraggler));
-	return chain;
-}
-
-template <typename IntContainer>
-auto	sortValues(const IntContainer& input)
-{
-	auto	items = makeItems(input);
-	auto	sortedItems = fordJohnson(items);
-	auto	sortedValues = extractValues<IntContainer>(sortedItems);
-
-	return sortedValues;
-}
-
-template <typename IntContainer>
-void	sortAndMeasure(const IntContainer& input, IntContainer& output, double& timeUs)
-{
-	auto	start = std::chrono::steady_clock::now();
-
-	output = sortValues(input);
-
-	auto	end = std::chrono::steady_clock::now();
-	timeUs = std::chrono::duration<double, std::micro>(end - start).count();
-}
-
-void	printTimingLine(const char *containerName, std::size_t elementCount, double timeUs)
-{
-	std::cout << std::fixed << std::setprecision(6)
-		<< "Time to process a range of " << elementCount
-		<< " elements with " << containerName << " : " << timeUs << " us"
-		<< std::endl;
-}
-
-PmergeMe::PmergeMe() : _vectorTimeUs(0.0), _dequeTimeUs(0.0)
-{
-}
-
-PmergeMe::PmergeMe(const PmergeMe& other): _vectorInput(other._vectorInput), _vectorSorted(other._vectorSorted), _dequeInput(other._dequeInput), _dequeSorted(other._dequeSorted), _vectorTimeUs(other._vectorTimeUs), _dequeTimeUs(other._dequeTimeUs)
-{
-}
-
-PmergeMe::~PmergeMe()
-{
-}
-
-PmergeMe&	PmergeMe::operator=(const PmergeMe& other)
-{
-	if (this != &other)
-	{
-		_vectorInput = other._vectorInput;
-		_vectorSorted = other._vectorSorted;
-		_dequeInput = other._dequeInput;
-		_dequeSorted = other._dequeSorted;
-		_vectorTimeUs = other._vectorTimeUs;
-		_dequeTimeUs = other._dequeTimeUs;
-	}
-	return *this;
-}
-
-void	PmergeMe::parseInput(int argc, char **argv)
-{
-	int	value;
-	int	i;
-
-	if (argc < 2)
-		throw std::runtime_error("Error");
-	_vectorInput.clear();
-	_vectorSorted.clear();
-	_dequeInput.clear();
-	_dequeSorted.clear();
-	_vectorTimeUs = 0.0;
-	_dequeTimeUs = 0.0;
-	i = 1;
-	while (i < argc)
-	{
-		value = parsePositiveInt(argv[i]);
-		_vectorInput.push_back(value);
-		_dequeInput.push_back(value);
-		++i;
-	}
-}
-
-void	PmergeMe::printBefore() const
-{
-	std::cout << "Before: ";
-	printSequence(_vectorInput);
-}
-
+ 
 void	PmergeMe::sortVector()
 {
-	sortAndMeasure(_vectorInput, _vectorSorted, _vectorTimeUs);
+	sortAndMeasure(_vecIn, _vecOut, _vecUs);
 }
-
+ 
 void	PmergeMe::printAfterVector() const
 {
 	std::cout << "After:  ";
-	printSequence(_vectorSorted);
+	std::size_t i = 0;
+	while (i < _vecOut.size())
+	{
+		if (i != 0)
+			std::cout << ' ';
+		std::cout << _vecOut[i];
+		++i;
+	}
+	std::cout << std::endl;
 }
-
+ 
 void	PmergeMe::sortDeque()
 {
-	sortAndMeasure(_dequeInput, _dequeSorted, _dequeTimeUs);
+	sortAndMeasure(_deqIn, _deqOut, _deqUs);
 }
-
+ 
 void	PmergeMe::printTimings() const
 {
-	printTimingLine("std::vector", _vectorInput.size(), _vectorTimeUs);
-	printTimingLine("std::deque", _dequeInput.size(), _dequeTimeUs);
+	std::cout << std::fixed << std::setprecision(6)
+		<< "Time to process a range of " << _vecIn.size()
+		<< " elements with std::vector : " << _vecUs << " us" << std::endl
+		<< "Time to process a range of " << _deqIn.size()
+		<< " elements with std::deque : " << _deqUs << " us" << std::endl;
 }
