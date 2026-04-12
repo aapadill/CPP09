@@ -93,7 +93,7 @@ static bool	parseValue(const std::string& str, double& value)
 	i = 0;
 	if (str[i] == '+' || str[i] == '-')
 		i++;
-	if (i == str.length())
+	if (i == str.length()) //it's only + or -'s
 		return false;
 	dotCount = 0;
 	while (i < str.length())
@@ -106,15 +106,17 @@ static bool	parseValue(const std::string& str, double& value)
 	}
 	if (dotCount > 1)
 		return false;
-	aux_stream >> value;
+	aux_stream >> value; //extracting str to double
 	if (aux_stream.fail())
 		return false;
-	aux_stream >> std::ws;
-	return aux_stream.eof();
+	aux_stream >> std::ws; //consume any other space, tabs and so on
+	if (!aux_stream.eof())
+		return false;
+	return true;
 }
 
 //finds the exchange rate for a date, or the closest earlier date
-//throws if no earlier date exists in the database
+//throws if no earlier date exists in the db
 static double	getRateForDate(const std::map<std::string, double>& rates, const std::string& date)
 {
 	std::map<std::string, double>::const_iterator	it;
@@ -127,7 +129,7 @@ static double	getRateForDate(const std::map<std::string, double>& rates, const s
 	//no earlier date exists
 	if (it == rates.begin())
 		throw std::out_of_range("No earlier exchange rate found.");
-	//step back to the closest earlier date
+	//subject says we want lower one so we step back to the closest earlier date
 	it--;
 	return it->second;
 }
@@ -164,6 +166,7 @@ static void	processInputLine(const std::string& line, const std::map<std::string
 	double					rate;
 
 	separator = line.find('|');
+	//no | found or more than one
 	if (separator == std::string::npos || line.find('|', separator + 1) != std::string::npos)
 	{
 		std::cout << "Error: bad input => " << line << std::endl;
