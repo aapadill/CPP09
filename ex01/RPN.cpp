@@ -60,8 +60,11 @@ static int	popValue(std::list<int>& stack)
 
 //OCF stuff
 RPN::RPN() {}
+
 RPN::RPN(const RPN& o) : _stack(o._stack) {}
+
 RPN::~RPN() {}
+
 RPN&	RPN::operator=(const RPN& o)
 {
 	if (this != &o)
