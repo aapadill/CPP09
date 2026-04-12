@@ -6,7 +6,7 @@
 /*   By: aapadill <aapadill@student.hive.fi>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/27 16:31:18 by aapadill          #+#    #+#             */
-/*   Updated: 2026/04/11 19:51:39 by aapadill         ###   ########.fr       */
+/*   Updated: 2026/04/12 06:39:06 by aapadill         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -65,9 +65,9 @@ std::vector<std::size_t>	insertionOrder(std::size_t count)
 	return order;
 }
 
-// aka Ford-Johnson algothe
-// pend[k] = {bk, ak} where ak == -1 means no leftover
-// pend[0] is a dummy; pend[1].first is the freebie (b1)
+//aka Ford-Johnson algo
+//pend[k] = {bk, ak} where ak == -1 means no leftover
+//pend[0] is a dummy; pend[1].first is the freebie (b1)
 template <typename C>
 void	mergeInsert(C& seq)
 {
@@ -159,7 +159,8 @@ void	mergeInsert(C& seq)
 		main.insert(pos, b);
 		j++;
 	} 
-	seq = main; //sorted final result
+	//sorted final result
+	seq = main;
 }
 
 template <typename C>
