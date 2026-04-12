@@ -11,59 +11,13 @@
 /* ************************************************************************** */
 
 #include "RPN.hpp"
-
+ 
 #include <cctype>
 #include <sstream>
 #include <stdexcept>
-
-RPN::RPN()
-{
-}
-
-RPN::RPN(const RPN& other) : _stack(other._stack)
-{
-}
-
-RPN::~RPN()
-{
-}
-
-RPN&	RPN::operator=(const RPN& other)
-{
-	if (this != &other)
-		_stack = other._stack;
-	return *this;
-}
-
-int	RPN::evaluate(const std::string& expression)
-{
-	std::istringstream	stream(expression);
-	std::string			token;
-	int					left;
-	int					right;
-	int					result;
-
-	clear();
-	while (stream >> token)
-	{
-		if (token.length() == 1 && std::isdigit(static_cast<unsigned char>(token[0])))
-			pushValue(token[0] - '0');
-		else if (isOperator(token))
-		{
-			right = popValue();
-			left = popValue();
-			result = applyOperation(left, right, token[0]);
-			pushValue(result);
-		}
-		else
-			throw std::runtime_error("Error");
-	}
-	if (_stack.size() != 1)
-		throw std::runtime_error("Error");
-	return _stack.back();
-}
-
-bool	RPN::isOperator(const std::string& token)
+ 
+//checks if token is one of + - * /
+static bool	isOperator(const std::string& token)
 {
 	if (token.length() != 1)
 		return false;
@@ -78,7 +32,8 @@ bool	RPN::isOperator(const std::string& token)
 	return false;
 }
 
-int	RPN::applyOperation(int left, int right, char op)
+//applies the operation, division by zero throws
+static int	applyOperation(int left, int right, char op)
 {
 	if (op == '+')
 		return left + right;
@@ -91,23 +46,57 @@ int	RPN::applyOperation(int left, int right, char op)
 	return left / right;
 }
 
-void	RPN::pushValue(int value)
+//pops the top value from the stack, throws if empty
+static int	popValue(std::list<int>& stack)
 {
-	_stack.push_back(value);
-}
-
-int	RPN::popValue()
-{
-	int	value;
-
-	if (_stack.empty())
+	int	top;
+ 
+	if (stack.empty())
 		throw std::runtime_error("Error");
-	value = _stack.back();
-	_stack.pop_back();
-	return value;
+	top = stack.back();
+	stack.pop_back();
+	return top;
 }
 
-void	RPN::clear()
+//OCF stuff
+RPN::RPN() {}
+RPN::RPN(const RPN& o) : _stack(o._stack) {}
+RPN::~RPN() {}
+RPN&	RPN::operator=(const RPN& o)
 {
+	if (this != &o)
+		_stack = o._stack;
+	return *this;
+}
+
+//tokenizes the expression, pushes digits, applies operators
+//at the end the stack must have exactly one value: the result
+int	RPN::evaluate(const std::string& expression)
+{
+	std::istringstream	aux_stream(expression);
+	std::string			token;
+	int					left;
+	int					right;
+	int					result;
+ 
 	_stack.clear();
+	while (aux_stream >> token)
+	{
+		if (token.length() == 1 && std::isdigit(static_cast<unsigned char>(token[0])))
+		{
+			_stack.push_back(token[0] - '0');
+		}
+		else if (isOperator(token))
+		{
+			right = popValue(_stack);
+			left = popValue(_stack);
+			result = applyOperation(left, right, token[0]);
+			_stack.push_back(result);
+		}
+		else
+			throw std::runtime_error("Error");
+	}
+	if (_stack.size() != 1)
+		throw std::runtime_error("Error");
+	return _stack.back();
 }

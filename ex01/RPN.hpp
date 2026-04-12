@@ -11,27 +11,23 @@
 /* ************************************************************************** */
 
 #pragma once
-
+ 
 #include <list>
 #include <string>
-
+ 
 class RPN
 {
+	private:
+		//using list as a stack (push_back, pop_back, back)
+		std::list<int>	_stack;
+ 
 	public:
+		//OCF
 		RPN();
 		RPN(const RPN& other);
 		~RPN();
 		RPN&	operator=(const RPN& other);
-
+ 
+		//main flow
 		int	evaluate(const std::string& expression);
-
-	private:
-		std::list<int>	_stack;
-
-		static bool	isOperator(const std::string& token);
-		static int	applyOperation(int left, int right, char op);
-		
-		void	pushValue(int value);
-		int		popValue();
-		void	clear();
 };
